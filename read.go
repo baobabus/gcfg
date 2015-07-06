@@ -132,7 +132,7 @@ func readInto(config interface{}, fset *token.FileSet, file *token.File, src []b
 			}
 			err := set(config, sect, sectsub, n, blank, v)
 			if err != nil {
-				return err
+				return errfn(err.Error())
 			}
 		default:
 			if sect == "" {
