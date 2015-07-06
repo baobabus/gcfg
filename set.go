@@ -279,3 +279,33 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 	}
 	return nil
 }
+
+type TypeParser func(blank bool, val string) (interface{}, error)
+
+// Registers type parser function.
+func RegisterTypeParser(tgtType reflect.Type, typeParser TypeParser) error {
+	typeSetters[tgtType] = func(d interface{}, blank bool, val string, t tag) error {
+		v, err := typeParser(blank, val)
+		if err == nil {
+			sv := reflect.ValueOf(v)
+			tv := reflect.ValueOf(d)
+			if tv.CanSet() {
+				// TODO properly enumerate over Kind
+				if sv.Kind() < reflect.Array {
+					tv.Set(reflect.ValueOf(v))
+				} else {
+					tv.Set(reflect.ValueOf(v).Elem())
+				}
+			} else {
+				// TODO properly enumerate over Kind
+				if sv.Kind() < reflect.Array {
+					tv.Elem().Set(reflect.ValueOf(v))
+				} else {
+					tv.Elem().Set(reflect.ValueOf(v).Elem())
+				}
+			}
+		}
+		return err
+	}
+	return nil
+}
