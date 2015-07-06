@@ -11,7 +11,7 @@ import (
 )
 
 import (
-	"github.com/scalingdata/gcfg/token"
+	"github.com/baobabus/gcfg/token"
 )
 
 var fset = token.NewFileSet()

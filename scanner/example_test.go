@@ -9,8 +9,8 @@ import (
 )
 
 import (
-	"github.com/scalingdata/gcfg/scanner"
-	"github.com/scalingdata/gcfg/token"
+	"github.com/baobabus/gcfg/scanner"
+	"github.com/baobabus/gcfg/token"
 )
 
 func ExampleScanner_Scan() {
