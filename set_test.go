@@ -20,6 +20,47 @@ type cRegTypes struct {
 	Reg_Types_1   cRegTypes1
 }
 
+type stTestCase struct {
+	gcfg string
+	exp  interface{}
+	ok   bool
+}
+
+func assert(tt *stTestCase, t *testing.T) {
+	res := &cRegTypes{}
+	err := ReadStringInto(res, tt.gcfg)
+	if tt.ok {
+		if err != nil {
+			t.Errorf("%s fail: got error %v, wanted ok", tt.gcfg, err)
+			return
+		} else if !reflect.DeepEqual(res, tt.exp) {
+			t.Errorf("%s fail: got value %#v, wanted value %#v", tt.gcfg, res, tt.exp)
+			return
+		}
+		if !testing.Short() {
+			t.Logf("%s pass: got value %#v", tt.gcfg, res)
+		}
+	} else { // !tt.ok
+		if err == nil {
+			t.Errorf("%s fail: got value %#v, wanted error", tt.gcfg, res)
+			return
+		}
+		if !testing.Short() {
+			t.Logf("%s pass: got error %v", tt.gcfg, err)
+		}
+	}
+}
+
+func TestMissignTypeParser(t *testing.T) {
+	for _, tt := range []stTestCase{
+		{"[reg-types-1]\nduration1=5m", &cRegTypes{Reg_Types_1: cRegTypes1{}}, false},
+		{"[reg-types-1]\nduration1=5", &cRegTypes{Reg_Types_1: cRegTypes1{Duration1: time.Duration(5)}}, true},
+		{"[reg-types-1]\nemail1=foo@bar.com", &cRegTypes{Reg_Types_1: cRegTypes1{}}, false},
+	} {
+		assert(&tt, t)
+	}
+}
+
 func TestRegisteredTypeParser(t *testing.T) {
 	var d time.Duration;
 	RegisterTypeParser(reflect.TypeOf(d), func(blank bool, val string) (interface{}, error) {
@@ -34,11 +75,7 @@ func TestRegisteredTypeParser(t *testing.T) {
 		}
 		return mail.ParseAddress(val)
 	})
-	for _, tt := range []struct {
-		gcfg string
-		exp  interface{}
-		ok   bool
-	}{
+	for _, tt := range []stTestCase{
 		{"[reg-types-1]\nduration1=5m", &cRegTypes{Reg_Types_1: cRegTypes1{Duration1: 5 * time.Minute}}, true},
 		{"[reg-types-1]\nduration1=1m30s", &cRegTypes{Reg_Types_1: cRegTypes1{Duration1: 90 * time.Second}}, true},
 		{"[reg-types-1]\nduration1=1m1m", &cRegTypes{Reg_Types_1: cRegTypes1{Duration1: time.Duration(2 * time.Minute)}}, true},
@@ -56,27 +93,6 @@ func TestRegisteredTypeParser(t *testing.T) {
 		{"[reg-types-1]\nemail3=foo@bar.com", &cRegTypes{Reg_Types_1: cRegTypes1{Email3: []*mail.Address{&mail.Address{"", "foo@bar.com"}}}}, true},
 		{"[reg-types-1]\nemail4=foo@bar.com", &cRegTypes{Reg_Types_1: cRegTypes1{Email4: []mail.Address{mail.Address{"", "foo@bar.com"}}}}, true},
 	} {
-		res := &cRegTypes{}
-		err := ReadStringInto(res, tt.gcfg)
-		if tt.ok {
-			if err != nil {
-				t.Errorf("%s fail: got error %v, wanted ok", tt.gcfg, err)
-				return
-			} else if !reflect.DeepEqual(res, tt.exp) {
-				t.Errorf("%s fail: got value %#v, wanted value %#v", tt.gcfg, res, tt.exp)
-				return
-			}
-			if !testing.Short() {
-				t.Logf("%s pass: got value %#v", tt.gcfg, res)
-			}
-		} else { // !tt.ok
-			if err == nil {
-				t.Errorf("%s fail: got value %#v, wanted error", tt.gcfg, res)
-				return
-			}
-			if !testing.Short() {
-				t.Logf("%s pass: got error %v", tt.gcfg, err)
-			}
-		}
+		assert(&tt, t)
 	}
 }
