@@ -23,6 +23,7 @@ type cBasic struct {
 	unexported        cBasicS1
 	Exported          cBasicS3
 	TagName           cBasicS1 `gcfg:"tag-name"`
+	Section_Ptr      *cBasicS1
 }
 type cBasicS1 struct {
 	Name  string
@@ -205,6 +206,9 @@ var readtests = []struct {
 	//{"[xsection]\nname=value", &cBasic{XSection: cBasicS4{XName: "value"}}, false},
 	// name specified as struct tag
 	{"[tag-name]\nname=value", &cBasic{TagName: cBasicS1{Name: "value"}}, true},
+	// pointer to section structure
+	{"[section]\nname=value", &cBasic{Section: cBasicS1{Name: "value"}, Section_Ptr: nil}, true},
+	{"[section-ptr]\nname=value\nint=1", &cBasic{Section_Ptr: &cBasicS1{Name: "value", Int: 1}}, true},
 }}, {"multivalue", []readtest{
 	// unnamed slice type: treat as multi-value
 	{"\n[m1]", &cMulti{M1: cMultiS1{}}, true},

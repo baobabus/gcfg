@@ -218,6 +218,11 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 			vSect.SetMapIndex(k, pv)
 		}
 		vSect = pv.Elem()
+	} else if vSect.Kind() == reflect.Ptr && (vSect.IsNil() || vSect.Elem().Kind() == reflect.Struct) {
+		if vSect.IsNil() {
+			vSect.Set(reflect.New(vSect.Type().Elem()))
+		}
+		vSect = vSect.Elem()
 	} else if vSect.Kind() != reflect.Struct {
 		panic(fmt.Errorf("field for section must be a map or a struct: "+
 			"section %q", sect))
