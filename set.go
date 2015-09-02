@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -11,13 +12,27 @@ import (
 	"github.com/baobabus/gcfg/types"
 )
 
-type tag struct {
-	ident   string
-	intMode string
+type metadata struct {
+	ident       string
+	intMode     string
+	constraints constraints
+	err         error
 }
 
-func newTag(ts string) tag {
-	t := tag{}
+func getIntTag(tag reflect.StructTag, constraint string, dflt int) (int, error) {
+	c := tag.Get(constraint)
+	if c == "" {
+		return dflt, nil
+	}
+	r, perr := strconv.ParseInt(c, 10, 0)
+	if perr != nil {
+		return dflt, fmt.Errorf("invalid %s constraint (%s)", constraint, c)
+	}
+	return int(r), nil
+}
+
+func newMetadata(ts string, tag reflect.StructTag) metadata {
+	t := metadata{}
 	s := strings.Split(ts, ",")
 	t.ident = s[0]
 	for _, tse := range s[1:] {
@@ -25,10 +40,16 @@ func newTag(ts string) tag {
 			t.intMode = tse[len("int="):]
 		}
 	}
+	t.constraints.min = tag.Get("min")
+	t.constraints.max = tag.Get("max")
+	t.constraints.minlen, t.err = getIntTag(tag, "minlen", -1)
+	if t.err == nil {
+		t.constraints.maxlen, t.err = getIntTag(tag, "maxlen", int(^uint(0) >> 1))
+	}
 	return t
 }
 
-func fieldFold(v reflect.Value, name string) (reflect.Value, tag) {
+func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 	var n string
 	r0, _ := utf8.DecodeRuneInString(name)
 	if unicode.IsLetter(r0) && !unicode.IsLower(r0) && !unicode.IsUpper(r0) {
@@ -40,19 +61,19 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, tag) {
 			return false
 		}
 		f, _ := v.Type().FieldByName(fieldName)
-		t := newTag(f.Tag.Get("gcfg"))
+		t := newMetadata(f.Tag.Get("gcfg"), f.Tag)
 		if t.ident != "" {
 			return strings.EqualFold(t.ident, name)
 		}
 		return strings.EqualFold(n, fieldName)
 	})
 	if !ok {
-		return reflect.Value{}, tag{}
+		return reflect.Value{}, metadata{}
 	}
-	return v.FieldByName(f.Name), newTag(f.Tag.Get("gcfg"))
+	return v.FieldByName(f.Name), newMetadata(f.Tag.Get("gcfg"), f.Tag)
 }
 
-type setter func(destp interface{}, blank bool, val string, t tag) error
+type setter func(destp interface{}, blank bool, val string, t metadata) error
 
 var errUnsupportedType = fmt.Errorf("unsupported type")
 var errBlankUnsupported = fmt.Errorf("blank value not supported for type")
@@ -61,7 +82,7 @@ var setters = []setter{
 	typeSetter, textUnmarshalerSetter, kindSetter, scanSetter,
 }
 
-func textUnmarshalerSetter(d interface{}, blank bool, val string, t tag) error {
+func textUnmarshalerSetter(d interface{}, blank bool, val string, t metadata) error {
 	dtu, ok := d.(textUnmarshaler)
 	if !ok {
 		return errUnsupportedType
@@ -69,10 +90,11 @@ func textUnmarshalerSetter(d interface{}, blank bool, val string, t tag) error {
 	if blank {
 		return errBlankUnsupported
 	}
-	return dtu.UnmarshalText([]byte(val))
+	if err := dtu.UnmarshalText([]byte(val)); err != nil { return err; }
+	return checkBounds(d, t, unmarshalBoundary)
 }
 
-func boolSetter(d interface{}, blank bool, val string, t tag) error {
+func boolSetter(d interface{}, blank bool, val string, t metadata) error {
 	if blank {
 		reflect.ValueOf(d).Elem().Set(reflect.ValueOf(true))
 		return nil
@@ -121,7 +143,7 @@ func intModeDefault(t reflect.Type) types.IntMode {
 	return m
 }
 
-func intSetter(d interface{}, blank bool, val string, t tag) error {
+func intSetter(d interface{}, blank bool, val string, t metadata) error {
 	if blank {
 		return errBlankUnsupported
 	}
@@ -132,7 +154,7 @@ func intSetter(d interface{}, blank bool, val string, t tag) error {
 	return types.ParseInt(d, val, mode)
 }
 
-func stringSetter(d interface{}, blank bool, val string, t tag) error {
+func stringSetter(d interface{}, blank bool, val string, t metadata) error {
 	if blank {
 		return errBlankUnsupported
 	}
@@ -164,29 +186,48 @@ var typeSetters = map[reflect.Type]setter{
 	reflect.TypeOf(big.Int{}): intSetter,
 }
 
-func typeSetter(d interface{}, blank bool, val string, tt tag) error {
+func typeSetter(d interface{}, blank bool, val string, tt metadata) error {
 	t := reflect.ValueOf(d).Type().Elem()
 	setter, ok := typeSetters[t]
 	if !ok {
 		return errUnsupportedType
 	}
-	return setter(d, blank, val, tt)
+	if err := setter(d, blank, val, tt); err != nil { return err; }
+	boundaryGetter := func(d interface{}, val string) (*reflect.Value, error) {
+		if val == "" { return nil, nil; }
+		v := reflect.New(reflect.ValueOf(d).Elem().Type())
+		r := &v
+		if err := setter(r.Interface(), false, val, tt); err != nil { return nil, err; }
+		return r, nil
+	}
+	return checkBounds(d, tt, boundaryGetter)
 }
 
-func kindSetter(d interface{}, blank bool, val string, tt tag) error {
+func kindSetter(d interface{}, blank bool, val string, t metadata) error {
 	k := reflect.ValueOf(d).Type().Elem().Kind()
 	setter, ok := kindSetters[k]
 	if !ok {
 		return errUnsupportedType
 	}
-	return setter(d, blank, val, tt)
+	if err := setter(d, blank, val, t); err != nil { return err; }
+	boundaryGetter := func(d interface{}, val string) (*reflect.Value, error) {
+		if val == "" { return nil, nil; }
+		v := reflect.New(reflect.ValueOf(d).Elem().Type())
+		r := &v
+		if err := setter(r.Interface(), false, val, t); err != nil { return nil, err; }
+		return r, nil
+	}
+	return checkBounds(d, t, boundaryGetter)
 }
 
-func scanSetter(d interface{}, blank bool, val string, tt tag) error {
+func scanSetter(d interface{}, blank bool, val string, t metadata) error {
 	if blank {
 		return errBlankUnsupported
 	}
-	return types.ScanFully(d, val, 'v')
+	if err := types.ScanFully(d, val, 'v'); err != nil {
+		return err
+	}
+	return checkBounds(d, t, scanBoundary)
 }
 
 func set(cfg interface{}, sect, sub, name string, blank bool, value string) error {
@@ -234,6 +275,10 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 	if !vVar.IsValid() {
 		return fmt.Errorf("invalid variable: "+
 			"section %q subsection %q variable %q", sect, sub, name)
+	}
+	if t.err != nil {
+		return fmt.Errorf("%s: "+
+			"section %q subsection %q variable %q", t.err, sect, sub, name)
 	}
 	// vVal is either single-valued var, or newly allocated value within multi-valued var
 	var vVal reflect.Value
@@ -289,7 +334,7 @@ type TypeParser func(blank bool, val string) (interface{}, error)
 
 // Registers type parser function.
 func RegisterTypeParser(tgtType reflect.Type, typeParser TypeParser) error {
-	typeSetters[tgtType] = func(d interface{}, blank bool, val string, t tag) error {
+	typeSetters[tgtType] = func(d interface{}, blank bool, val string, t metadata) error {
 		v, err := typeParser(blank, val)
 		if err == nil {
 			sv := reflect.ValueOf(v)
