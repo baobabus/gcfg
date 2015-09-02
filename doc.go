@@ -17,6 +17,11 @@
 //    - section and variable names can contain unicode letters, unicode digits
 //      (as defined in http://golang.org/ref/spec#Characters ) and hyphens
 //      (U+002D), starting with a unicode letter
+//  - validation
+//    - mapping of data fields of ordered types can optionally specify
+//      minimum and maximum values
+//    - (planned) mapping of data fields of string and slice types can optionally
+//      specify minimum and maximum length
 //  - disallow potentially ambiguous or misleading definitions:
 //    - `[sec.sub]` format is not allowed (deprecated in gitconfig)
 //    - `[sec ""]` is not allowed
@@ -29,8 +34,9 @@
 // Data structure
 //
 // The functions in this package read values into a user-defined struct.
-// Each section corresponds to a struct field in the config struct, and each
-// variable in a section corresponds to a data field in the section struct.
+// Each section corresponds to a struct field or a field that is a pointer to a struct
+// in the config struct, and each variable in a section corresponds to a data field
+// in the section struct.
 // The mapping of each section or variable name to fields is done either based
 // on the "gcfg" struct tag or by matching the name of the section or variable,
 // ignoring case. In the latter case, hyphens '-' in section and variable names
@@ -84,6 +90,10 @@
 // Parsing mode for integer types can be overridden using the struct tag option
 // ",int=mode" where mode is a combination of the 'd', 'h', and 'o' characters
 // (each standing for decimal, hexadecimal, and octal, respectively.)
+//
+// Custom parser can be registered using RegisterTypeParser() function.
+// This is useful for types that require special handling  and which don't
+// implement encoding.TextUnmarshaler interface (such as time.Duration).
 //
 // All other types are parsed using fmt.Sscanf with the "%v" verb.
 //
