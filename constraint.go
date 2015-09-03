@@ -100,3 +100,36 @@ func checkBounds(d interface{}, t metadata, bg boundaryGetter) error {
 	}
 	return nil
 }
+
+// Checks whether d's length is within limits specified in the metadata.
+// This is only applicable to strings.
+func checkLength(d interface{}, t metadata) error {
+	var obl, obh bool
+	if t.constraints.minlen >= 0 || t.constraints.maxlen >= 0 {
+		rv := reflect.ValueOf(d)
+		vk := rv.Type().Kind()
+		if vk == reflect.Ptr {
+			rv = rv.Elem()
+			vk = rv.Type().Kind()
+		}
+		vl := -1
+		if vk == reflect.String { vl = rv.Len(); }
+		if vl >= 0 {
+			obl = t.constraints.minlen >= 0 && vl < t.constraints.minlen
+			obh = t.constraints.maxlen >= 0 && vl > t.constraints.maxlen
+		}
+	}
+	switch {
+	case obl:
+		return fmt.Errorf("Value is too short")
+	case obh:
+		return fmt.Errorf("Value is too long")
+	}
+	return nil
+}
+
+func checkConstraints(d interface{}, t metadata, bg boundaryGetter) error {
+	if err := checkBounds(d, t, bg); err != nil { return err; }
+	if err := checkLength(d, t); err != nil { return err; }
+	return nil
+}

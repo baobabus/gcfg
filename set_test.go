@@ -16,6 +16,8 @@ type cRegTypes1 struct {
 	Email4    []mail.Address 
 }
 
+type astr string
+
 type cBoundsTypes1 struct {
 	IntR1       int           `min:"10" max:"20"`
 	IntR2     []int           `min:"10" max:"20"`
@@ -25,6 +27,8 @@ type cBoundsTypes1 struct {
 	StringR1    string        `min:"b" max:"zz"`
 	TimeR1      time.Time     `min:"2000-01-01T00:00:00.00Z" max:"2000-01-02T00:00:00.00Z"`
 	DurationR1  time.Duration `min:"1h" max:"1h30m"`
+	StringL1    string        `minlen:"2" maxlen:"4"`
+	StringA1    astr          `minlen:"2" maxlen:"4"`
 }
 
 type cRegTypes struct {
@@ -156,6 +160,18 @@ func TestBoundsConstraints(t *testing.T) {
 		{"[bounds-types-1]\ndurationR1=1h30m", &cRegTypes{Bounds_Types_1: cBoundsTypes1{DurationR1: time.Hour + 30*time.Minute}}, true},
 		{"[bounds-types-1]\ndurationR1=55m",   &cRegTypes{Bounds_Types_1: cBoundsTypes1{DurationR1:             55*time.Minute}}, false},
 		{"[bounds-types-1]\ndurationR1=1h35m", &cRegTypes{Bounds_Types_1: cBoundsTypes1{DurationR1: time.Hour + 35*time.Minute}}, false},
+
+		{"[bounds-types-1]\nstringL1=aa",    &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringL1: "aa"}}, true},
+		{"[bounds-types-1]\nstringL1=aaa",   &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringL1: "aaa"}}, true},
+		{"[bounds-types-1]\nstringL1=aaaa",  &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringL1: "aaaa"}}, true},
+		{"[bounds-types-1]\nstringL1=a",     &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringL1: "a"}}, false},
+		{"[bounds-types-1]\nstringL1=aaaaa", &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringL1: "aaaaa"}}, false},
+
+		{"[bounds-types-1]\nstringA1=aa",    &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "aa"}}, true},
+		{"[bounds-types-1]\nstringA1=aaa",   &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "aaa"}}, true},
+		{"[bounds-types-1]\nstringA1=aaaa",  &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "aaaa"}}, true},
+		{"[bounds-types-1]\nstringA1=a",     &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "a"}}, false},
+		{"[bounds-types-1]\nstringA1=aaaaa", &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "aaaaa"}}, false},
 	} {
 		assert(&tt, t)
 	}

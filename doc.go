@@ -20,8 +20,10 @@
 //  - validation
 //    - mapping of data fields of ordered types can optionally specify
 //      minimum and maximum values
-//    - (planned) mapping of data fields of string and slice types can optionally
+//    - mapping of data fields of string types can optionally
 //      specify minimum and maximum length
+//    - (planned) mapping of data fields of slice types can optionally
+//      specify minimum and maximum element count
 //  - disallow potentially ambiguous or misleading definitions:
 //    - `[sec.sub]` format is not allowed (deprecated in gitconfig)
 //    - `[sec ""]` is not allowed

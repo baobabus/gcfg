@@ -44,7 +44,7 @@ func newMetadata(ts string, tag reflect.StructTag) metadata {
 	t.constraints.max = tag.Get("max")
 	t.constraints.minlen, t.err = getIntTag(tag, "minlen", -1)
 	if t.err == nil {
-		t.constraints.maxlen, t.err = getIntTag(tag, "maxlen", int(^uint(0) >> 1))
+		t.constraints.maxlen, t.err = getIntTag(tag, "maxlen", -1)
 	}
 	return t
 }
@@ -91,7 +91,7 @@ func textUnmarshalerSetter(d interface{}, blank bool, val string, t metadata) er
 		return errBlankUnsupported
 	}
 	if err := dtu.UnmarshalText([]byte(val)); err != nil { return err; }
-	return checkBounds(d, t, unmarshalBoundary)
+	return checkConstraints(d, t, unmarshalBoundary)
 }
 
 func boolSetter(d interface{}, blank bool, val string, t metadata) error {
@@ -200,7 +200,7 @@ func typeSetter(d interface{}, blank bool, val string, tt metadata) error {
 		if err := setter(r.Interface(), false, val, tt); err != nil { return nil, err; }
 		return r, nil
 	}
-	return checkBounds(d, tt, boundaryGetter)
+	return checkConstraints(d, tt, boundaryGetter)
 }
 
 func kindSetter(d interface{}, blank bool, val string, t metadata) error {
@@ -217,7 +217,7 @@ func kindSetter(d interface{}, blank bool, val string, t metadata) error {
 		if err := setter(r.Interface(), false, val, t); err != nil { return nil, err; }
 		return r, nil
 	}
-	return checkBounds(d, t, boundaryGetter)
+	return checkConstraints(d, t, boundaryGetter)
 }
 
 func scanSetter(d interface{}, blank bool, val string, t metadata) error {
@@ -227,7 +227,7 @@ func scanSetter(d interface{}, blank bool, val string, t metadata) error {
 	if err := types.ScanFully(d, val, 'v'); err != nil {
 		return err
 	}
-	return checkBounds(d, t, scanBoundary)
+	return checkConstraints(d, t, scanBoundary)
 }
 
 func set(cfg interface{}, sect, sub, name string, blank bool, value string) error {
