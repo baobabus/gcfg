@@ -56,6 +56,7 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 		n = "X"
 	}
 	n += strings.Replace(name, "-", "_", -1)
+	// Find by tag first
 	f, ok := v.Type().FieldByNameFunc(func(fieldName string) bool {
 		if !v.FieldByName(fieldName).CanSet() {
 			return false
@@ -65,8 +66,17 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 		if t.ident != "" {
 			return strings.EqualFold(t.ident, name)
 		}
-		return strings.EqualFold(n, fieldName)
+		return false
 	})
+	// Only if tag match fails, look up by field name
+	if !ok {
+		f, ok = v.Type().FieldByNameFunc(func(fieldName string) bool {
+			if !v.FieldByName(fieldName).CanSet() {
+				return false
+			}
+			return strings.EqualFold(n, fieldName)
+		})
+	}
 	if !ok {
 		return reflect.Value{}, metadata{}
 	}

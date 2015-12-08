@@ -96,6 +96,18 @@ type cNumS2 struct {
 	MultiBig []*big.Int
 }
 type cNumS3 struct{ FileMode os.FileMode }
+
+type cColl struct {
+	Section cCollS1
+}
+type cCollS1 struct {
+	Str1 string `gcfg:"str2"`
+	Str2 string `gcfg:"str1"`
+	Str3 string
+	Str4 string `gcfg:"str3"`
+	Str5 string
+}
+
 type readtest struct {
 	gcfg string
 	exp  interface{}
@@ -264,7 +276,13 @@ var readtests = []struct {
 }}, {"type:textUnmarshaler", []readtest{
 	{"[section]\nname=value", &cTxUnm{Section: cTxUnmS1{Name: "value"}}, true},
 	{"[section]\nname=error", &cTxUnm{}, false},
+}}, {"type:fieldResolution", []readtest{
+	{"[section]\nstr1=val1\nstr2=val2", &cColl{Section: cCollS1{Str1: "val2", Str2: "val1", Str3: "", Str4: "", Str5: ""}}, true},
+	{"[section]\nstr3=val3\nstr5=val5", &cColl{Section: cCollS1{Str1: "", Str2: "", Str3: "", Str4: "val3", Str5: "val5"}}, true},
+	{"[section]\nstr4=val3\nstr5=val5", &cColl{Section: cCollS1{Str1: "", Str2: "", Str3: "", Str4: "val3", Str5: "val5"}}, true},
+	{"[section]\nstr3=val3\nstr4=val4", &cColl{Section: cCollS1{Str1: "", Str2: "", Str3: "", Str4: "val4", Str5: ""}}, true},
 }},
+
 }
 
 func TestReadStringInto(t *testing.T) {
