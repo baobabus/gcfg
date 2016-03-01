@@ -279,8 +279,8 @@ var readtests = []struct {
 }}, {"type:fieldResolution", []readtest{
 	{"[section]\nstr1=val1\nstr2=val2", &cColl{Section: cCollS1{Str1: "val2", Str2: "val1", Str3: "", Str4: "", Str5: ""}}, true},
 	{"[section]\nstr3=val3\nstr5=val5", &cColl{Section: cCollS1{Str1: "", Str2: "", Str3: "", Str4: "val3", Str5: "val5"}}, true},
-	{"[section]\nstr4=val3\nstr5=val5", &cColl{Section: cCollS1{Str1: "", Str2: "", Str3: "", Str4: "val3", Str5: "val5"}}, true},
-	{"[section]\nstr3=val3\nstr4=val4", &cColl{Section: cCollS1{Str1: "", Str2: "", Str3: "", Str4: "val4", Str5: ""}}, true},
+	{"[section]\nstr4=val3\nstr5=val5", &cColl{}, false},
+	{"[section]\nstr3=val3\nstr4=val4", &cColl{}, false},
 }},
 
 }

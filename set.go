@@ -74,7 +74,13 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 			if !v.FieldByName(fieldName).CanSet() {
 				return false
 			}
-			return strings.EqualFold(n, fieldName)
+			res := strings.EqualFold(n, fieldName)
+			if res {
+				f, _ := v.Type().FieldByName(fieldName)
+				t := newMetadata(f.Tag.Get("gcfg"), f.Tag)
+				res = t.ident == ""
+			}
+			return res
 		})
 	}
 	if !ok {
