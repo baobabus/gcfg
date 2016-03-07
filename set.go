@@ -15,6 +15,7 @@ import (
 type metadata struct {
 	ident       string
 	intMode     string
+	callback    string
 	constraints constraints
 	err         error
 }
@@ -39,6 +40,9 @@ func newMetadata(ts string, tag reflect.StructTag) metadata {
 		if strings.HasPrefix(tse, "int=") {
 			t.intMode = tse[len("int="):]
 		}
+		if strings.HasPrefix(tse, "cb=") {
+			t.callback = tse[len("cb="):]
+		}
 	}
 	t.constraints.min = tag.Get("min")
 	t.constraints.max = tag.Get("max")
@@ -49,8 +53,9 @@ func newMetadata(ts string, tag reflect.StructTag) metadata {
 	return t
 }
 
-func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
+func fieldFold(v reflect.Value, name string) (reflect.Value, []int, metadata) {
 	var n string
+	ixs := []int{}
 	r0, _ := utf8.DecodeRuneInString(name)
 	if unicode.IsLetter(r0) && !unicode.IsLower(r0) && !unicode.IsUpper(r0) {
 		n = "X"
@@ -58,6 +63,11 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 	n += strings.Replace(name, "-", "_", -1)
 	// Find by tag first
 	f, ok := v.Type().FieldByNameFunc(func(fieldName string) bool {
+		// TODO Implement proper recursive traversal
+		// to deal with potential field name collisions
+		defer func() {
+			recover()
+		}()
 		if !v.FieldByName(fieldName).CanSet() {
 			return false
 		}
@@ -71,6 +81,11 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 	// Only if tag match fails, look up by field name
 	if !ok {
 		f, ok = v.Type().FieldByNameFunc(func(fieldName string) bool {
+			// TODO Implement proper recursive traversal
+			// to deal with potential field name collisions
+			defer func() {
+				recover()
+			}()
 			if !v.FieldByName(fieldName).CanSet() {
 				return false
 			}
@@ -84,9 +99,13 @@ func fieldFold(v reflect.Value, name string) (reflect.Value, metadata) {
 		})
 	}
 	if !ok {
-		return reflect.Value{}, metadata{}
+		return reflect.Value{}, ixs, metadata{}
 	}
-	return v.FieldByName(f.Name), newMetadata(f.Tag.Get("gcfg"), f.Tag)
+	r := v.FieldByName(f.Name)
+	if f, ok := v.Type().FieldByName(f.Name); ok {
+		ixs = f.Index
+	}
+	return r, ixs, newMetadata(f.Tag.Get("gcfg"), f.Tag)
 }
 
 type setter func(destp interface{}, blank bool, val string, t metadata) error
@@ -252,7 +271,7 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 		panic(fmt.Errorf("config must be a pointer to a struct"))
 	}
 	vCfg := vPCfg.Elem()
-	vSect, _ := fieldFold(vCfg, sect)
+	vSect, _, _ := fieldFold(vCfg, sect)
 	if !vSect.IsValid() {
 		return fmt.Errorf("invalid section: section %q", sect)
 	}
@@ -287,7 +306,7 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 		return fmt.Errorf("invalid subsection: "+
 			"section %q subsection %q", sect, sub)
 	}
-	vVar, t := fieldFold(vSect, name)
+	vVar, ixs, t := fieldFold(vSect, name)
 	if !vVar.IsValid() {
 		return fmt.Errorf("invalid variable: "+
 			"section %q subsection %q variable %q", sect, sub, name)
@@ -342,6 +361,16 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 	}
 	if isMulti { // append if multi-valued
 		vVar.Set(reflect.Append(vVar, vVal))
+	}
+	if len(t.callback) > 0 {
+		vs := vSect
+		if len(ixs) > 0 {
+			vs = vSect.FieldByIndex(ixs[1:])
+		}
+		vs = vs.Addr()
+		if m := vs.MethodByName(t.callback); m.IsValid() {
+			m.Call([]reflect.Value{})
+		}
 	}
 	return nil
 }
