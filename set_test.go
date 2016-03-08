@@ -32,11 +32,11 @@ type cBoundsTypes1 struct {
 }
 
 type cCbTypes1 struct {
-	Int1        int `gcfg:",cb=Cb"`
-	Int2        int
-	Int3        int `gcfg:",cb=Cbb"`
-	Int4        int `gcfg:",cb=Cb"`
-	int5        int
+	Int1 int `gcfg:",cb=Cb"`
+	Int2 int
+	Int3 int `gcfg:",cb=Cbb"`
+	Int4 int `gcfg:",cb=Cb"`
+	int5 int
 }
 
 func (c *cCbTypes1) Cb() {
@@ -91,7 +91,7 @@ func TestMissignTypeParser(t *testing.T) {
 }
 
 func TestRegisteredTypeParser(t *testing.T) {
-	var d time.Duration;
+	var d time.Duration
 	RegisterTypeParser(reflect.TypeOf(d), func(blank bool, val string) (interface{}, error) {
 		if blank {
 			return nil, nil
@@ -127,7 +127,7 @@ func TestRegisteredTypeParser(t *testing.T) {
 }
 
 func TestBoundsConstraints(t *testing.T) {
-	var d time.Duration;
+	var d time.Duration
 	RegisterTypeParser(reflect.TypeOf(d), func(blank bool, val string) (interface{}, error) {
 		if blank {
 			return nil, nil

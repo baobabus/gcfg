@@ -38,7 +38,7 @@ func writeInSection(vSect reflect.Value, w io.Writer) error {
 		vSect = vSect.Elem()
 		tp = vSect.Type()
 	}
-	for i, n := 0, vSect.NumField(); i < n; i ++ {
+	for i, n := 0, vSect.NumField(); i < n; i++ {
 		vVar := vSect.Field(i)
 		if !vVar.IsValid() {
 			continue
@@ -91,7 +91,7 @@ func writeSection(vSect reflect.Value, name string, w io.Writer) error {
 
 func write(vc reflect.Value, w io.Writer) error {
 	vt := vc.Type()
-	for i, n := 0, vc.NumField(); i < n; i ++ {
+	for i, n := 0, vc.NumField(); i < n; i++ {
 		vSect := vc.Field(i)
 		if !vSect.IsValid() {
 			continue
@@ -155,8 +155,7 @@ func Write(config interface{}, w io.Writer) error {
 
 type TypeFormatter func(interface{}) string
 
-var typeFormatters = map[reflect.Type]TypeFormatter{
-}
+var typeFormatters = map[reflect.Type]TypeFormatter{}
 
 func RegisterTypeFormatter(tgtType reflect.Type, typeFormatter TypeFormatter) error {
 	typeFormatters[tgtType] = typeFormatter
