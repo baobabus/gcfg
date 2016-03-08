@@ -31,9 +31,22 @@ type cBoundsTypes1 struct {
 	StringA1    astr          `minlen:"2" maxlen:"4"`
 }
 
+type cCbTypes1 struct {
+	Int1        int `gcfg:",cb=Cb"`
+	Int2        int
+	Int3        int `gcfg:",cb=Cbb"`
+	Int4        int `gcfg:",cb=Cb"`
+	int5        int
+}
+
+func (c *cCbTypes1) Cb() {
+	c.int5++
+}
+
 type cRegTypes struct {
 	Reg_Types_1    cRegTypes1
 	Bounds_Types_1 cBoundsTypes1
+	Cb_Types_1     cCbTypes1
 }
 
 type stTestCase struct {
@@ -172,6 +185,18 @@ func TestBoundsConstraints(t *testing.T) {
 		{"[bounds-types-1]\nstringA1=aaaa",  &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "aaaa"}}, true},
 		{"[bounds-types-1]\nstringA1=a",     &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "a"}}, false},
 		{"[bounds-types-1]\nstringA1=aaaaa", &cRegTypes{Bounds_Types_1: cBoundsTypes1{StringA1: "aaaaa"}}, false},
+	} {
+		assert(&tt, t)
+	}
+}
+
+func TestCallback(t *testing.T) {
+	for _, tt := range []stTestCase{
+		{"[cb-types-1]\nint1=1", &cRegTypes{Cb_Types_1: cCbTypes1{Int1: 1, Int2: 0, Int3: 0, Int4: 0, int5: 1}}, true},
+		{"[cb-types-1]\nint2=1", &cRegTypes{Cb_Types_1: cCbTypes1{Int1: 0, Int2: 1, Int3: 0, Int4: 0, int5: 0}}, true},
+		{"[cb-types-1]\nint3=1", &cRegTypes{Cb_Types_1: cCbTypes1{Int1: 0, Int2: 0, Int3: 1, Int4: 0, int5: 0}}, true}, // quietly fail
+		{"[cb-types-1]\nint4=1", &cRegTypes{Cb_Types_1: cCbTypes1{Int1: 0, Int2: 0, Int3: 0, Int4: 1, int5: 1}}, true},
+		{"[cb-types-1]\nint1=1\nint4=1", &cRegTypes{Cb_Types_1: cCbTypes1{Int1: 1, Int2: 0, Int3: 0, Int4: 1, int5: 2}}, true},
 	} {
 		assert(&tt, t)
 	}
